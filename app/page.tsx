@@ -1,0 +1,260 @@
+import { Suspense } from "react"
+import { Clock, Package, RefreshCw, ShoppingBag, ShoppingCart, User, Activity, Users } from "lucide-react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { getDashboardStats } from "@/lib/dashboard-service"
+import { SyncModal } from "@/components/sync-modal"
+
+async function DashboardContent() {
+  // Buscar estatísticas do dashboard
+  const stats = await getDashboardStats()
+
+  // Mapear ícones de atividades
+  const getIconComponent = (iconName: string) => {
+    switch (iconName) {
+      case "ShoppingCart":
+        return <ShoppingCart className="h-4 w-4 text-blue-500" />
+      case "Package":
+        return <Package className="h-4 w-4 text-blue-500" />
+      case "User":
+        return <User className="h-4 w-4 text-blue-500" />
+      case "RefreshCw":
+        return <RefreshCw className="h-4 w-4 text-blue-500" />
+      default:
+        return <Activity className="h-4 w-4 text-blue-500" />
+    }
+  }
+
+  // Determinar a cor do status da sincronização
+  const getSyncStatusColor = (status: string) => {
+    return status === "success" ? "text-green-500" : "text-amber-500"
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <SyncModal />
+      </div>
+
+      {/* Primeira linha: Métricas principais */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="border-zinc-800 bg-zinc-950/50">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-lg font-medium">Pedidos Totais</CardTitle>
+            <ShoppingCart className="h-5 w-5 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-white">{stats.totalPedidos}</div>
+            <CardDescription className="flex items-center text-zinc-400">
+              <span className={stats.pedidosPendentes > 0 ? "text-amber-500" : "text-green-500"}>
+                {stats.pedidosPendentes} pendentes
+              </span>
+            </CardDescription>
+          </CardContent>
+        </Card>
+
+        <Card className="border-zinc-800 bg-zinc-950/50">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-lg font-medium">Pedidos Enviados</CardTitle>
+            <ShoppingBag className="h-5 w-5 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-white">{stats.pedidosEnviados}</div>
+            <CardDescription className="flex items-center text-zinc-400">
+              <span className="text-green-500">{stats.taxasSucesso.pedidos}% de sucesso</span>
+            </CardDescription>
+          </CardContent>
+        </Card>
+
+        <Card className="border-zinc-800 bg-zinc-950/50">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-lg font-medium">Produtos Vinculados</CardTitle>
+            <Package className="h-5 w-5 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-white">{stats.produtosVinculados}</div>
+            <CardDescription className="flex items-center text-zinc-400">
+              <span className="text-green-500">{stats.taxasSucesso.produtos}% confiáveis</span>
+            </CardDescription>
+          </CardContent>
+        </Card>
+
+        <Card className="border-zinc-800 bg-zinc-950/50">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-lg font-medium">Clientes</CardTitle>
+            <Users className="h-5 w-5 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-white">{stats.clientesCadastrados}</div>
+            <CardDescription className="flex items-center text-zinc-400">
+              <span className="text-green-500">{stats.clientesAtivos} ativos</span>
+            </CardDescription>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Segunda linha: Sincronização e Taxas de Sucesso */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card className="border-zinc-800 bg-zinc-950/50">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-lg font-medium">Última Sincronização</CardTitle>
+            <Clock className="h-5 w-5 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-white">{stats.ultimaSincronizacao.data}</div>
+            <div className="mt-2 flex flex-col space-y-2">
+              <CardDescription className="text-zinc-400">{stats.ultimaSincronizacao.tempoAtras}</CardDescription>
+              <div className="flex items-center gap-2">
+                <span className="text-sm">Tipo:</span>
+                <span className="text-sm font-medium">{stats.ultimaSincronizacao.tipo || "N/A"}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm">Status:</span>
+                <span className={`text-sm font-medium ${getSyncStatusColor(stats.ultimaSincronizacao.status)}`}>
+                  {stats.ultimaSincronizacao.status || "N/A"}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-zinc-800 bg-zinc-950/50">
+          <CardHeader>
+            <CardTitle>Taxas de Sucesso</CardTitle>
+            <CardDescription>Desempenho do sistema</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="text-sm">Pedidos</span>
+                  <span className="text-sm font-medium">{stats.taxasSucesso.pedidos}%</span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-800">
+                  <div
+                    className="h-full rounded-full bg-blue-500"
+                    style={{ width: `${stats.taxasSucesso.pedidos}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              <div>
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="text-sm">Produtos</span>
+                  <span className="text-sm font-medium">{stats.taxasSucesso.produtos}%</span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-800">
+                  <div
+                    className="h-full rounded-full bg-blue-500"
+                    style={{ width: `${stats.taxasSucesso.produtos}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              <div>
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="text-sm">Clientes</span>
+                  <span className="text-sm font-medium">{stats.taxasSucesso.clientes}%</span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-800">
+                  <div
+                    className="h-full rounded-full bg-blue-500"
+                    style={{ width: `${stats.taxasSucesso.clientes}%` }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Terceira linha: Atividades e Status */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card className="border-zinc-800 bg-zinc-950/50">
+          <CardHeader>
+            <CardTitle>Atividade Recente</CardTitle>
+            <CardDescription>Últimas operações realizadas</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {stats.atividadesRecentes.length > 0 ? (
+                stats.atividadesRecentes.map((atividade) => (
+                  <div key={atividade.id} className="flex items-center gap-4 rounded-lg border border-zinc-800 p-3">
+                    <div className="rounded-full bg-blue-500/20 p-2">{getIconComponent(atividade.icone)}</div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{atividade.descricao}</p>
+                      <p className="text-xs text-zinc-400">{atividade.tempoAtras}</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center text-zinc-500 py-4">Nenhuma atividade registrada</div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-zinc-800 bg-zinc-950/50">
+          <CardHeader>
+            <CardTitle>Status do Sistema</CardTitle>
+            <CardDescription>Monitoramento em tempo real</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm">API Plus Delivery</span>
+                <span className="flex items-center text-sm text-green-500">
+                  <span className="mr-2 h-2 w-2 rounded-full bg-green-500"></span>
+                  Online
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">API Saboritte</span>
+                <span className="flex items-center text-sm text-green-500">
+                  <span className="mr-2 h-2 w-2 rounded-full bg-green-500"></span>
+                  Online
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Serviço de Sincronização</span>
+                <span className="flex items-center text-sm text-green-500">
+                  <span className="mr-2 h-2 w-2 rounded-full bg-green-500"></span>
+                  Ativo
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Banco de Dados</span>
+                <span
+                  className={`flex items-center text-sm ${stats.statusSistema.bancoDados ? "text-green-500" : "text-red-500"}`}
+                >
+                  <span
+                    className={`mr-2 h-2 w-2 rounded-full ${stats.statusSistema.bancoDados ? "bg-green-500" : "bg-red-500"}`}
+                  ></span>
+                  {stats.statusSistema.bancoDados ? "Conectado" : "Desconectado"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Uso de Memória</span>
+                <span className="text-sm">{stats.statusSistema.usoMemoria}%</span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-800">
+                <div
+                  className={`h-full rounded-full ${stats.statusSistema.usoMemoria > 80 ? "bg-red-500" : "bg-blue-500"}`}
+                  style={{ width: `${stats.statusSistema.usoMemoria}%` }}
+                ></div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
+
+export default function Dashboard() {
+  return (
+    <Suspense fallback={<div>Carregando estatísticas...</div>}>
+      <DashboardContent />
+    </Suspense>
+  )
+}
