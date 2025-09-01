@@ -435,24 +435,17 @@ export class OrdersService {
 
         // Preparar os dados para enviar
         try {
-          // Obtenha as configurações da Saboritte de onde for apropriado na sua aplicação
-          // Aqui assumimos que já existe um objeto `this.config` ou algo similar disponível
-          const config = (await ConfigService.getPlatformConfigurations(
-            "saboritte"
-          )) || {
-            credentials: {
-              email: "",
-              senha: "",
-              api_token: "",
-              api_url: "",
-            },
-            settings: {
-              auto_sync: true,
-              sync_interval: 300,
-              test_mode: false,
-              notify_errors: true,
-            },
-          };
+          // Obter configurações da Saboritte
+          const config = await ConfigService.getPlatformConfigurations("saboritte");
+          
+          if (!config?.credentials?.email || !config?.credentials?.senha) {
+            results.push({
+              id: order.id,
+              success: false,
+              message: `Pedido #${order.id}: Credenciais da Saboritte não configuradas`,
+            });
+            continue;
+          }
 
           const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/enviapedido`;
 
