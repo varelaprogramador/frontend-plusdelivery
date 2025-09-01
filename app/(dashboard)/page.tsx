@@ -31,20 +31,20 @@ async function DashboardContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
         <SyncModal />
       </div>
 
       {/* Primeira linha: Métricas principais */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="border-zinc-800 bg-zinc-950/50">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-lg font-medium">Pedidos Totais</CardTitle>
-            <ShoppingCart className="h-5 w-5 text-blue-500" />
+            <CardTitle className="text-sm sm:text-lg font-medium">Pedidos Totais</CardTitle>
+            <ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-white">{stats.totalPedidos}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-white">{stats.totalPedidos}</div>
             <CardDescription className="flex items-center text-zinc-400">
               <span className={stats.pedidosPendentes > 0 ? "text-amber-500" : "text-green-500"}>
                 {stats.pedidosPendentes} pendentes
@@ -55,11 +55,11 @@ async function DashboardContent() {
 
         <Card className="border-zinc-800 bg-zinc-950/50">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-lg font-medium">Pedidos Enviados</CardTitle>
-            <ShoppingBag className="h-5 w-5 text-blue-500" />
+            <CardTitle className="text-sm sm:text-lg font-medium">Pedidos Enviados</CardTitle>
+            <ShoppingBag className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-white">{stats.pedidosEnviados}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-white">{stats.pedidosEnviados}</div>
             <CardDescription className="flex items-center text-zinc-400">
               <span className="text-green-500">{stats.taxasSucesso.pedidos}% de sucesso</span>
             </CardDescription>
@@ -68,11 +68,11 @@ async function DashboardContent() {
 
         <Card className="border-zinc-800 bg-zinc-950/50">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-lg font-medium">Produtos Vinculados</CardTitle>
-            <Package className="h-5 w-5 text-blue-500" />
+            <CardTitle className="text-sm sm:text-lg font-medium">Produtos Vinculados</CardTitle>
+            <Package className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-white">{stats.produtosVinculados}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-white">{stats.produtosVinculados}</div>
             <CardDescription className="flex items-center text-zinc-400">
               <span className="text-green-500">{stats.taxasSucesso.produtos}% confiáveis</span>
             </CardDescription>
@@ -81,11 +81,11 @@ async function DashboardContent() {
 
         <Card className="border-zinc-800 bg-zinc-950/50">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-lg font-medium">Clientes</CardTitle>
-            <Users className="h-5 w-5 text-blue-500" />
+            <CardTitle className="text-sm sm:text-lg font-medium">Clientes</CardTitle>
+            <Users className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-white">{stats.clientesCadastrados}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-white">{stats.clientesCadastrados}</div>
             <CardDescription className="flex items-center text-zinc-400">
               <span className="text-green-500">{stats.clientesAtivos} ativos</span>
             </CardDescription>
@@ -94,14 +94,14 @@ async function DashboardContent() {
       </div>
 
       {/* Segunda linha: Sincronização e Taxas de Sucesso */}
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2">
         <Card className="border-zinc-800 bg-zinc-950/50">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-lg font-medium">Última Sincronização</CardTitle>
-            <Clock className="h-5 w-5 text-blue-500" />
+            <CardTitle className="text-sm sm:text-lg font-medium">Última Sincronização</CardTitle>
+            <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-white">{stats.ultimaSincronizacao.data}</div>
+            <div className="text-lg sm:text-2xl font-bold text-white break-words">{stats.ultimaSincronizacao.data}</div>
             <div className="mt-2 flex flex-col space-y-2">
               <CardDescription className="text-zinc-400">{stats.ultimaSincronizacao.tempoAtras}</CardDescription>
               <div className="flex items-center gap-2">
@@ -167,86 +167,6 @@ async function DashboardContent() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Terceira linha: Atividades e Status */}
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card className="border-zinc-800 bg-zinc-950/50">
-          <CardHeader>
-            <CardTitle>Atividade Recente</CardTitle>
-            <CardDescription>Últimas operações realizadas</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {stats.atividadesRecentes.length > 0 ? (
-                stats.atividadesRecentes.map((atividade) => (
-                  <div key={atividade.id} className="flex items-center gap-4 rounded-lg border border-zinc-800 p-3">
-                    <div className="rounded-full bg-blue-500/20 p-2">{getIconComponent(atividade.icone)}</div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{atividade.descricao}</p>
-                      <p className="text-xs text-zinc-400">{atividade.tempoAtras}</p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center text-zinc-500 py-4">Nenhuma atividade registrada</div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-zinc-800 bg-zinc-950/50">
-          <CardHeader>
-            <CardTitle>Status do Sistema</CardTitle>
-            <CardDescription>Monitoramento em tempo real</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm">API Plus Delivery</span>
-                <span className="flex items-center text-sm text-green-500">
-                  <span className="mr-2 h-2 w-2 rounded-full bg-green-500"></span>
-                  Online
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">API Saboritte</span>
-                <span className="flex items-center text-sm text-green-500">
-                  <span className="mr-2 h-2 w-2 rounded-full bg-green-500"></span>
-                  Online
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Serviço de Sincronização</span>
-                <span className="flex items-center text-sm text-green-500">
-                  <span className="mr-2 h-2 w-2 rounded-full bg-green-500"></span>
-                  Ativo
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Banco de Dados</span>
-                <span
-                  className={`flex items-center text-sm ${stats.statusSistema.bancoDados ? "text-green-500" : "text-red-500"}`}
-                >
-                  <span
-                    className={`mr-2 h-2 w-2 rounded-full ${stats.statusSistema.bancoDados ? "bg-green-500" : "bg-red-500"}`}
-                  ></span>
-                  {stats.statusSistema.bancoDados ? "Conectado" : "Desconectado"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Uso de Memória</span>
-                <span className="text-sm">{stats.statusSistema.usoMemoria}%</span>
-              </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-800">
-                <div
-                  className={`h-full rounded-full ${stats.statusSistema.usoMemoria > 80 ? "bg-red-500" : "bg-blue-500"}`}
-                  style={{ width: `${stats.statusSistema.usoMemoria}%` }}
-                ></div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   )
 }
@@ -266,7 +186,7 @@ function DashboardLoading() {
           <div className="h-9 w-32 bg-zinc-800/50 rounded-lg animate-pulse"></div>
         </div>
       </div>
-      
+
       {/* Primeira linha: Cards de métricas */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
@@ -284,7 +204,7 @@ function DashboardLoading() {
           </Card>
         ))}
       </div>
-      
+
       {/* Segunda linha: Cards de sincronização e taxas */}
       <div className="grid gap-6 md:grid-cols-2">
         {/* Card de sincronização skeleton */}
@@ -334,9 +254,9 @@ function DashboardLoading() {
           </CardContent>
         </Card>
       </div>
-      
+
       {/* Terceira linha: Atividades e Status */}
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2">
         {/* Card de atividades skeleton */}
         <Card className="border-zinc-800 bg-zinc-950/50">
           <CardHeader>
@@ -383,7 +303,7 @@ function DashboardLoading() {
                   </div>
                 ))}
               </div>
-              
+
               <div className="pt-2 border-t border-zinc-800">
                 <div className="flex items-center justify-between mb-2">
                   <div className="h-4 w-28 bg-zinc-800/40 rounded animate-pulse"></div>

@@ -2,6 +2,7 @@ import type React from "react"
 
 import "../globals.css"
 import { Sidebar } from "@/components/sidebar"
+import { MobileHeader } from "@/components/mobile-header"
 import { NotificationListener } from "@/components/notification"
 import SyncProgressToast from "@/components/sync-progress-toast"
 import { Toaster } from "@/components/ui/sonner"
@@ -14,11 +15,23 @@ export default function RootLayout({
 }>) {
   return (
     <>
-      <div className="flex min-h-screen">
-        <aside className="fixed left-0 top-0 h-screen w-64 z-40 border-r border-zinc-800 bg-zinc-950">
-          <Sidebar />
-        </aside>
-        <main className="flex-1 ml-64 p-6 md:p-8 overflow-auto min-h-screen">{children}</main>
+      <div className="min-h-screen bg-zinc-950">
+        {/* Mobile header - only visible on mobile */}
+        <MobileHeader />
+        
+        <div className="flex">
+          {/* Sidebar - Hidden on mobile, fixed on desktop */}
+          <aside className="hidden lg:fixed lg:left-0 lg:top-0 lg:h-screen lg:w-64 lg:z-40 lg:border-r lg:border-zinc-800 lg:bg-zinc-950 lg:block">
+            <Sidebar />
+          </aside>
+          
+          {/* Main content - Full width on mobile, with left margin on desktop */}
+          <main className="flex-1 lg:ml-64 w-full min-h-screen">
+            <div className="p-4 md:p-6 lg:p-8">
+              {children}
+            </div>
+          </main>
+        </div>
       </div>
       <Toaster />
       <SyncProgressToast />
