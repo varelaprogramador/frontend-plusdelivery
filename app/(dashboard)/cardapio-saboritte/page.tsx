@@ -12,6 +12,8 @@ import { useToast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
 import { useCardapioSaboritte } from "@/hooks/useCardapioSaboritte"
 import { useSyncQueue } from "@/hooks/use-sync-queue"
+import { ConfigService } from "@/lib/config-service"
+import { ConfigurationData } from "@/lib/types-config"
 
 interface Variacao {
   descricao: string
@@ -64,14 +66,64 @@ export default function CardapioSaboritte() {
   const [searchTerm, setSearchTerm] = useState("")
   const [debugInfo, setDebugInfo] = useState<string>("")
   const { startSync, finishSync, isSyncing } = useSyncQueue()
+  const [loading, setLoading] = useState(true)
+  const [config, setConfig] = useState<ConfigurationData>({
+    saboritte: {
+      credentials: {
+        email: "",
+        senha: "",
+        api_token: "",
+        api_url: "",
+      },
+      settings: {
+        auto_sync: true,
+        sync_interval: 300,
+        test_mode: false,
+        notify_errors: true,
+      },
+    },
+    plus: {
+      credentials: {
+        email: "",
+        senha: "",
+        api_token: "",
+        api_url: "",
+      },
+      settings: {
+        auto_sync: true,
+        sync_interval: 300,
+        test_mode: false,
+        notify_errors: true,
+      },
+    },
+  })
+  useEffect(() => {
+    loadConfigurations()
+  }, [])
 
+  const loadConfigurations = async () => {
+    try {
+      setLoading(true)
+      const configurations = await ConfigService.getAllConfigurations()
+      setConfig(configurations)
+    } catch (error) {
+      console.error("Erro ao carregar configurações:", error)
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar as configurações.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
   // Usar o hook para buscar o cardápio
   const {
     data,
     isLoading,
     isError,
     refetch,
-  } = useCardapioSaboritte("varelaryan278@gmail.com", "Rryan0906", false)
+  } = useCardapioSaboritte(config.saboritte.credentials.email, config.saboritte.credentials.senha, false)
 
   // Extrair produtos achatados
   const cardapio = data

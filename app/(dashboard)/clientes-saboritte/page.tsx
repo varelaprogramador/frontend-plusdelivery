@@ -29,6 +29,8 @@ import { useSyncQueue } from "@/hooks/use-sync-queue"
 
 // Primeiro, vamos adicionar as importações necessárias para o Supabase
 import { getSupabase } from "@/lib/supabase"
+import { ConfigService } from "@/lib/config-service"
+import { ConfigurationData } from "@/lib/types-config"
 
 // Interfaces para os dados de clientes da API (camelCase)
 interface ClienteAPI {
@@ -70,6 +72,7 @@ const STORAGE_KEY = "intermediator_clientes_saboritte"
 export default function ClientesSaboritte() {
   const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
+  const [loading, setLoading] = useState(true)
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [clientesFiltrados, setClientesFiltrados] = useState<Cliente[]>([])
   const [ultimaSincronizacao, setUltimaSincronizacao] = useState<string | null>(null)
@@ -86,14 +89,64 @@ export default function ClientesSaboritte() {
     permiteCampanhas: 0,
   })
   const { startSync, finishSync, isSyncing } = useSyncQueue()
+  const [config, setConfig] = useState<ConfigurationData>({
+    saboritte: {
+      credentials: {
+        email: "",
+        senha: "",
+        api_token: "",
+        api_url: "",
+      },
+      settings: {
+        auto_sync: true,
+        sync_interval: 300,
+        test_mode: false,
+        notify_errors: true,
+      },
+    },
+    plus: {
+      credentials: {
+        email: "",
+        senha: "",
+        api_token: "",
+        api_url: "",
+      },
+      settings: {
+        auto_sync: true,
+        sync_interval: 300,
+        test_mode: false,
+        notify_errors: true,
+      },
+    },
+  })
+  useEffect(() => {
+    loadConfigurations()
+  }, [])
 
+  const loadConfigurations = async () => {
+    try {
+      setLoading(true)
+      const configurations = await ConfigService.getAllConfigurations()
+      setConfig(configurations)
+    } catch (error) {
+      console.error("Erro ao carregar configurações:", error)
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar as configurações.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+  // Usar o hook para buscar o cardápi
   // Usar o hook para buscar clientes da Saboritte
   const {
     data,
     isLoading,
     isError,
     refetch,
-  } = useClientesSaboritte("varelaryan278@gmail.com", "Rryan0906", false)
+  } = useClientesSaboritte(config.saboritte.credentials.email, config.saboritte.credentials.senha, false)
 
   // Atualizar clientes quando data mudar
   useEffect(() => {
@@ -103,7 +156,7 @@ export default function ClientesSaboritte() {
       setClientes(clientesAPI);
       setUltimaSincronizacao(new Date().toISOString());
       calcularEstatisticas(clientesAPI);
-      
+
       // Salvar no Supabase
       salvarClientesNoSupabase(clientesAPI);
     }
@@ -245,18 +298,18 @@ export default function ClientesSaboritte() {
   const salvarClientesNoSupabase = async (clientesData: Cliente[]) => {
     try {
       const supabase = getSupabase()
-      
+
       // Primeiro, buscar clientes existentes
       const { data: clientesExistentes } = await supabase
         .from("clients")
         .select("id")
 
       const idsExistentes = new Set(clientesExistentes?.map(c => c.id) || [])
-      
+
       // Separar clientes novos e existentes
       const clientesNovos = clientesData.filter(cliente => !idsExistentes.has(cliente.id))
       const clientesParaAtualizar = clientesData.filter(cliente => idsExistentes.has(cliente.id))
-      
+
       // Inserir novos clientes
       if (clientesNovos.length > 0) {
         const { error: insertError } = await supabase
@@ -295,7 +348,7 @@ export default function ClientesSaboritte() {
       }
 
       console.log(`Sincronização concluída: ${clientesNovos.length} novos, ${clientesParaAtualizar.length} atualizados`)
-      
+
     } catch (error) {
       console.error("Erro ao salvar clientes no Supabase:", error)
     }

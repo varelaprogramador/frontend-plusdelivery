@@ -7,6 +7,9 @@ import type {
 import { STORAGE_KEY_ORDERS } from "./types-orders";
 import { getSupabase } from "./supabase";
 import { normalizePhoneNumber } from "./utils";
+import { ConfigService } from "./config-service";
+import { toast } from "sonner";
+import { ConfigurationData } from "./types-config";
 
 // Classe para gerenciar pedidos
 export class OrdersService {
@@ -432,13 +435,31 @@ export class OrdersService {
 
         // Preparar os dados para enviar
         try {
-          // URL da API
+          // Obtenha as configurações da Saboritte de onde for apropriado na sua aplicação
+          // Aqui assumimos que já existe um objeto `this.config` ou algo similar disponível
+          const config = (await ConfigService.getPlatformConfigurations(
+            "saboritte"
+          )) || {
+            credentials: {
+              email: "",
+              senha: "",
+              api_token: "",
+              api_url: "",
+            },
+            settings: {
+              auto_sync: true,
+              sync_interval: 300,
+              test_mode: false,
+              notify_errors: true,
+            },
+          };
+
           const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/enviapedido`;
 
           // Parâmetros de autenticação
           const params = new URLSearchParams({
-            email: "varelaryan278@gmail.com",
-            senha: "Rryan0906",
+            email: config.credentials.email,
+            senha: config.credentials.senha,
           });
 
           // Normalizar o telefone do cliente antes de enviar
