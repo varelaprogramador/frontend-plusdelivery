@@ -48,6 +48,8 @@ interface Cliente {
   bloqueado: boolean
   permitirrobo: boolean
   permitircampanhas: boolean
+  created_at?: string
+  updated_at?: string
 }
 
 interface ClientesResponse {
@@ -101,6 +103,9 @@ export default function ClientesSaboritte() {
       setClientes(clientesAPI);
       setUltimaSincronizacao(new Date().toISOString());
       calcularEstatisticas(clientesAPI);
+      
+      // Salvar no Supabase
+      salvarClientesNoSupabase(clientesAPI);
     }
   }, [data]);
 
@@ -161,7 +166,10 @@ export default function ClientesSaboritte() {
 
       // Em seguida, buscamos os dados mais atualizados do Supabase
       const supabase = getSupabase()
-      const { data: clientesSupabase, error } = await supabase.from("clients").select("*").order("nome")
+      const { data: clientesSupabase, error } = await supabase
+        .from("clients")
+        .select("id, nome, telefone, bloqueado, permitirrobo, permitircampanhas, created_at, updated_at")
+        .order("nome")
 
       if (error) {
         console.error("Erro ao carregar clientes do Supabase:", error)
@@ -230,6 +238,66 @@ export default function ClientesSaboritte() {
         variant: "destructive",
       })
       return false
+    }
+  }
+
+  // Função para salvar clientes no Supabase
+  const salvarClientesNoSupabase = async (clientesData: Cliente[]) => {
+    try {
+      const supabase = getSupabase()
+      
+      // Primeiro, buscar clientes existentes
+      const { data: clientesExistentes } = await supabase
+        .from("clients")
+        .select("id")
+
+      const idsExistentes = new Set(clientesExistentes?.map(c => c.id) || [])
+      
+      // Separar clientes novos e existentes
+      const clientesNovos = clientesData.filter(cliente => !idsExistentes.has(cliente.id))
+      const clientesParaAtualizar = clientesData.filter(cliente => idsExistentes.has(cliente.id))
+      
+      // Inserir novos clientes
+      if (clientesNovos.length > 0) {
+        const { error: insertError } = await supabase
+          .from("clients")
+          .insert(clientesNovos.map(cliente => ({
+            id: cliente.id,
+            nome: cliente.nome,
+            telefone: cliente.telefone,
+            bloqueado: cliente.bloqueado,
+            permitirrobo: cliente.permitirrobo,
+            permitircampanhas: cliente.permitircampanhas
+          })))
+
+        if (insertError) {
+          console.error("Erro ao inserir novos clientes:", insertError)
+        }
+      }
+
+      // Atualizar clientes existentes
+      for (const cliente of clientesParaAtualizar) {
+        const { error: updateError } = await supabase
+          .from("clients")
+          .update({
+            nome: cliente.nome,
+            telefone: cliente.telefone,
+            bloqueado: cliente.bloqueado,
+            permitirrobo: cliente.permitirrobo,
+            permitircampanhas: cliente.permitircampanhas,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", cliente.id)
+
+        if (updateError) {
+          console.error(`Erro ao atualizar cliente ${cliente.id}:`, updateError)
+        }
+      }
+
+      console.log(`Sincronização concluída: ${clientesNovos.length} novos, ${clientesParaAtualizar.length} atualizados`)
+      
+    } catch (error) {
+      console.error("Erro ao salvar clientes no Supabase:", error)
     }
   }
 

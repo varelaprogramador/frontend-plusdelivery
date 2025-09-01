@@ -1,5 +1,10 @@
-import { getSupabase } from "./supabase"
-import type { Configuration, ConfigurationData, PlatformCredentials, PlatformSettings } from "./types-config"
+import { getSupabase } from "./supabase";
+import type {
+  Configuration,
+  ConfigurationData,
+  PlatformCredentials,
+  PlatformSettings,
+} from "./types-config";
 
 export class ConfigService {
   /**
@@ -7,16 +12,16 @@ export class ConfigService {
    */
   static async getAllConfigurations(): Promise<ConfigurationData> {
     try {
-      const supabase = getSupabase()
+      const supabase = getSupabase();
 
       const { data: configurations, error } = await supabase
         .from("configurations")
         .select("*")
         .eq("active", true)
-        .order("platform", { ascending: true })
+        .order("platform", { ascending: true });
 
       if (error) {
-        throw error
+        throw error;
       }
 
       // Organizar as configurações por plataforma e tipo
@@ -48,19 +53,19 @@ export class ConfigService {
             notify_errors: true,
           },
         },
-      }
+      };
 
       // Processar as configurações
-      configurations?.forEach((config: Configuration) => {
-        const platform = config.platform as "plus" | "saboritte"
-        const configType = config.config_type as "credentials" | "settings"
+      configurations?.forEach((config: any) => {
+        const platform = config.platform as "plus" | "saboritte";
+        const configType = config.config_type as "credentials" | "settings";
 
         if (configType === "credentials") {
-          const credentials = configData[platform].credentials as any
-          credentials[config.config_key] = config.config_value || ""
+          const credentials = configData[platform].credentials as any;
+          credentials[config.config_key] = config.config_value || "";
         } else if (configType === "settings") {
-          const settings = configData[platform].settings as any
-          let value: any = config.config_value
+          const settings = configData[platform].settings as any;
+          let value: any = config.config_value;
 
           // Converter valores para tipos apropriados
           if (
@@ -68,35 +73,40 @@ export class ConfigService {
             config.config_key === "test_mode" ||
             config.config_key === "notify_errors"
           ) {
-            value = config.config_value === "true"
+            value = config.config_value === "true";
           } else if (config.config_key === "sync_interval") {
-            value = Number.parseInt(config.config_value || "300", 10)
+            value = Number.parseInt(config.config_value || "300", 10);
           }
 
-          settings[config.config_key] = value
+          settings[config.config_key] = value;
         }
-      })
+      });
 
-      return configData
+      return configData;
     } catch (error) {
-      console.error("Erro ao buscar configurações:", error)
-      throw error
+      console.error("Erro ao buscar configurações:", error);
+      throw error;
     }
   }
 
   /**
    * Buscar configurações de uma plataforma específica
    */
-  static async getPlatformConfigurations(platform: "plus" | "saboritte"): Promise<{
-    credentials: PlatformCredentials
-    settings: PlatformSettings
+  static async getPlatformConfigurations(
+    platform: "plus" | "saboritte"
+  ): Promise<{
+    credentials: PlatformCredentials;
+    settings: PlatformSettings;
   }> {
     try {
-      const allConfigs = await this.getAllConfigurations()
-      return allConfigs[platform]
+      const allConfigs = await this.getAllConfigurations();
+      return allConfigs[platform];
     } catch (error) {
-      console.error(`Erro ao buscar configurações da plataforma ${platform}:`, error)
-      throw error
+      console.error(
+        `Erro ao buscar configurações da plataforma ${platform}:`,
+        error
+      );
+      throw error;
     }
   }
 
@@ -106,16 +116,16 @@ export class ConfigService {
   static async updatePlatformConfigurations(
     platform: "plus" | "saboritte",
     credentials: Partial<PlatformCredentials>,
-    settings: Partial<PlatformSettings>,
+    settings: Partial<PlatformSettings>
   ): Promise<void> {
     try {
-      const supabase = getSupabase()
+      const supabase = getSupabase();
       const updates: Array<{
-        platform: string
-        config_type: string
-        config_key: string
-        config_value: string
-      }> = []
+        platform: string;
+        config_type: string;
+        config_key: string;
+        config_value: string;
+      }> = [];
 
       // Preparar atualizações de credenciais
       Object.entries(credentials).forEach(([key, value]) => {
@@ -125,9 +135,9 @@ export class ConfigService {
             config_type: "credentials",
             config_key: key,
             config_value: String(value),
-          })
+          });
         }
-      })
+      });
 
       // Preparar atualizações de configurações
       Object.entries(settings).forEach(([key, value]) => {
@@ -137,9 +147,9 @@ export class ConfigService {
             config_type: "settings",
             config_key: key,
             config_value: String(value),
-          })
+          });
         }
-      })
+      });
 
       // Executar atualizações
       for (const update of updates) {
@@ -150,16 +160,19 @@ export class ConfigService {
           },
           {
             onConflict: "platform,config_type,config_key",
-          },
-        )
+          }
+        );
 
         if (error) {
-          throw error
+          throw error;
         }
       }
     } catch (error) {
-      console.error(`Erro ao atualizar configurações da plataforma ${platform}:`, error)
-      throw error
+      console.error(
+        `Erro ao atualizar configurações da plataforma ${platform}:`,
+        error
+      );
+      throw error;
     }
   }
 
@@ -167,45 +180,62 @@ export class ConfigService {
    * Testar conexão com uma plataforma
    */
   static async testConnection(platform: "plus" | "saboritte"): Promise<{
-    success: boolean
-    message: string
+    success: boolean;
+    message: string;
   }> {
     try {
-      const config = await this.getPlatformConfigurations(platform)
+      const config = await this.getPlatformConfigurations(platform);
 
       if (platform === "plus") {
         // Testar conexão com Plus
         const params = new URLSearchParams({
           email: config.credentials.email,
           senha: config.credentials.senha,
-        })
+        });
 
-        const response = await fetch(`${config.credentials.api_url}/cardapio?${params.toString()}`, {
-          headers: {
-            "x-Secret": config.credentials.api_secret || "",
-            Accept: "application/json",
-          },
-        })
+        const response = await fetch(
+          `${config.credentials.api_url}/cardapio?${params.toString()}`,
+          {
+            headers: {
+              "x-Secret": config.credentials.api_secret || "",
+              Accept: "application/json",
+            },
+          }
+        );
 
         if (response.ok) {
-          return { success: true, message: "Conexão com Plus Delivery estabelecida com sucesso!" }
+          return {
+            success: true,
+            message: "Conexão com Plus Delivery estabelecida com sucesso!",
+          };
         } else {
-          return { success: false, message: `Erro na conexão: ${response.status}` }
+          return {
+            success: false,
+            message: `Erro na conexão: ${response.status}`,
+          };
         }
       } else {
         // Testar conexão com Saboritte (simulado por enquanto)
         if (config.credentials.email && config.credentials.senha) {
-          return { success: true, message: "Conexão com Saboritte estabelecida com sucesso!" }
+          return {
+            success: true,
+            message: "Conexão com Saboritte estabelecida com sucesso!",
+          };
         } else {
-          return { success: false, message: "Credenciais incompletas para Saboritte" }
+          return {
+            success: false,
+            message: "Credenciais incompletas para Saboritte",
+          };
         }
       }
     } catch (error) {
-      console.error(`Erro ao testar conexão com ${platform}:`, error)
+      console.error(`Erro ao testar conexão com ${platform}:`, error);
       return {
         success: false,
-        message: `Erro ao testar conexão: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
-      }
+        message: `Erro ao testar conexão: ${
+          error instanceof Error ? error.message : "Erro desconhecido"
+        }`,
+      };
     }
   }
 }

@@ -103,8 +103,7 @@ export class OrdersService {
   }> {
     try {
       // URL da API
-      const apiUrl =
-        "https://bot-mauric-backend.rkwxxj.easypanel.host/api/pedidos";
+      const apiUrl = "http://localhost:3000/api/pedidos";
 
       // Parâmetros de autenticação
       const params = new URLSearchParams({
@@ -190,15 +189,16 @@ export class OrdersService {
       const supabase = getSupabase();
 
       // Buscar todos os clientes e normalizar seus telefones para comparação
-      const { data: clientes } = await supabase
+      const { data: clientes } = (await supabase
         .from("clients")
-        .select("id, nome, telefone");
+        .select("id, nome, telefone")) as any;
 
       if (!clientes || clientes.length === 0) return { exists: false };
 
       // Verificar se algum cliente tem o mesmo número normalizado
       const clienteExistente = clientes.find(
-        (cliente) => normalizePhoneNumber(cliente.telefone) === normalizedPhone
+        (cliente: any) =>
+          normalizePhoneNumber(cliente.telefone) === normalizedPhone
       );
 
       if (clienteExistente) {
@@ -249,8 +249,8 @@ export class OrdersService {
         return {
           vinculado: true,
           produtoSaboritte: {
-            id: vinculacaoExata[0].saboritte_id,
-            nome: vinculacaoExata[0].saboritte_name,
+            id: String(vinculacaoExata[0].saboritte_id),
+            nome: String(vinculacaoExata[0].saboritte_name),
           },
         };
       }
@@ -269,8 +269,8 @@ export class OrdersService {
         return {
           vinculado: true,
           produtoSaboritte: {
-            id: vinculacaoParcial[0].saboritte_id,
-            nome: vinculacaoParcial[0].saboritte_name,
+            id: String(vinculacaoParcial[0].saboritte_id),
+            nome: String(vinculacaoParcial[0].saboritte_name),
           },
         };
       }
@@ -433,8 +433,7 @@ export class OrdersService {
         // Preparar os dados para enviar
         try {
           // URL da API
-          const apiUrl =
-            "https://bot-mauric-backend.rkwxxj.easypanel.host/api/enviapedido";
+          const apiUrl = "http://localhost:3000/api/enviapedido";
 
           // Parâmetros de autenticação
           const params = new URLSearchParams({
@@ -477,11 +476,11 @@ export class OrdersService {
           itensVinculados.forEach((item) => {
             // Repetir o ID conforme a quantidade do item
             for (let i = 0; i < item.quantity; i++) {
-              id_produtos.push(item.produtoSaboritte.id);
+              if (item.produtoSaboritte && item.produtoSaboritte.id) {
+                id_produtos.push(item.produtoSaboritte.id);
+              }
             }
           });
-
-          // Preparar dados do pedido no formato esperado pela API
           const requestData = {
             id: order.id,
             nome: clienteNome, // API espera "nome" em vez de "cliente"
@@ -502,7 +501,7 @@ export class OrdersService {
 
           // Se o cliente existir, adicionar o ID
           if (clienteId) {
-            requestData.clienteId = clienteId;
+            (requestData as any).clienteId = clienteId;
           }
 
           console.log(
@@ -569,8 +568,8 @@ export class OrdersService {
               telefoneOriginal: order.clientPhone,
               itensVinculados: itensVinculados.map((item) => ({
                 original: item.name,
-                vinculado: item.produtoSaboritte.nome,
-                id: item.produtoSaboritte.id,
+                vinculado: item.produtoSaboritte?.nome,
+                id: item.produtoSaboritte?.id,
                 quantidade: item.quantity,
               })),
             });
@@ -732,7 +731,8 @@ export class OrdersService {
     const clientPhone = phoneMatch ? phoneMatch[1].trim() : undefined;
 
     // Extrair endereço
-    const addressMatch = details.match(/Endereço: (.*?)(?=\n\n|$)/s);
+    // Removido o flag /s para compatibilidade com targets anteriores ao ES2018
+    const addressMatch = details.match(/Endereço: (.*?)(?=\n\n|$)/);
     let street = "";
     let number = "";
     const complement = "";

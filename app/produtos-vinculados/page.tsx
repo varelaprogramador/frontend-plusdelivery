@@ -473,14 +473,17 @@ export default function ProdutosVinculados() {
     return acc
   }, {})
 
+  // State for search filters
+  const [filtroProdutosPlus, setFiltroProdutosPlus] = useState("")
+  const [filtroProdutosSaboritte, setFiltroProdutosSaboritte] = useState("")
+
   // Renderizar grupos de produtos Plus com pesquisa e check de vinculação
   const renderProdutosPlus = () => {
     // Produtos já vinculados
     const idsVinculados = new Set(vinculacoes.map((v) => v.produtoPlus.id))
     // Filtro de pesquisa
-    const [filtro, setFiltro] = useState("")
     const produtosFiltrados = produtosPlus.filter((produto) =>
-      produto.nome.toLowerCase().includes(filtro.toLowerCase())
+      produto.nome.toLowerCase().includes(filtroProdutosPlus.toLowerCase())
     )
     const agrupados = produtosFiltrados.reduce<Record<string, ProdutoPlus[]>>((acc, produto) => {
       const categoria = produto.categoria || "Sem categoria"
@@ -493,16 +496,16 @@ export default function ProdutosVinculados() {
         <div className="p-2">
           <Input
             placeholder="Pesquisar produto..."
-            value={filtro}
-            onChange={(e) => setFiltro(e.target.value)}
+            value={filtroProdutosPlus}
+            onChange={(e) => setFiltroProdutosPlus(e.target.value)}
             className="mb-2 bg-zinc-900 text-white"
           />
         </div>
         {Object.entries(agrupados).map(([categoria, produtos]) => (
           <SelectGroup key={`group-${categoria}`}>
             <SelectLabel>{categoria}</SelectLabel>
-            {produtos.map((produto) => (
-              <SelectItem key={produto.id} value={produto.id || `plus-${Math.random().toString(36)}`}
+            {produtos.map((produto, index) => (
+              <SelectItem key={index + produto.id} value={produto.id || `plus-${Math.random().toString(36)}`}
                 className="flex items-center justify-between">
                 <span>{produto.nome} - {produto.valor}</span>
                 {idsVinculados.has(produto.id) && <Check className="ml-2 w-4 h-4 text-green-500" />}
@@ -517,12 +520,11 @@ export default function ProdutosVinculados() {
   // Renderizar grupos de produtos Saboritte com pesquisa e check de vinculação
   const renderProdutosSaboritte = () => {
     const idsVinculados = new Set(vinculacoes.map((v) => v.produtoSaboritte.id))
-    const [filtro, setFiltro] = useState("")
     // Se estamos no modo de vinculação de variações, mostrar apenas produtos com variações
     const categoriasParaRenderizar =
       modoVinculacao === "variacao" ? categoriasProdutosSaboritteComVariacoes : categoriasProdutosSaboritte
     const produtosFiltrados: ProdutoSaboritte[] = Object.values(categoriasParaRenderizar).flat().filter((produto) =>
-      produto.nome.toLowerCase().includes(filtro.toLowerCase())
+      produto.nome.toLowerCase().includes(filtroProdutosSaboritte.toLowerCase())
     )
     const agrupados = produtosFiltrados.reduce<Record<string, ProdutoSaboritte[]>>((acc, produto) => {
       const categoria = produto.categoria || "Sem categoria"
@@ -535,16 +537,16 @@ export default function ProdutosVinculados() {
         <div className="p-2">
           <Input
             placeholder="Pesquisar produto..."
-            value={filtro}
-            onChange={(e) => setFiltro(e.target.value)}
+            value={filtroProdutosSaboritte}
+            onChange={(e) => setFiltroProdutosSaboritte(e.target.value)}
             className="mb-2 bg-zinc-900 text-white"
           />
         </div>
         {Object.entries(agrupados).map(([categoria, produtos]) => (
           <SelectGroup key={`group-${categoria}`}>
             <SelectLabel>{categoria}</SelectLabel>
-            {produtos.map((produto) => (
-              <SelectItem key={produto.id} value={produto.id || `sab-${Math.random().toString(36)}`}
+            {produtos.map((produto, index) => (
+              <SelectItem key={index + produto.id} value={produto.id || `sab-${Math.random().toString(36)}`}
                 className="flex items-center justify-between">
                 <span>{produto.nome} - R$ {produto.preco}
                   {modoVinculacao === "variacao" && produto.variacoes && produto.variacoes.length > 0 &&

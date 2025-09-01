@@ -257,7 +257,11 @@ const OrderDetailsModal = memo(
     }, [order])
 
     return (
-      <Dialog open={isOpen} onOpenChange={onClose}>
+      <Dialog open={isOpen} onOpenChange={(open) => {
+        if (!open) {
+          onClose()
+        }
+      }}>
         <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Detalhes do Pedido #{order?.id}</DialogTitle>
