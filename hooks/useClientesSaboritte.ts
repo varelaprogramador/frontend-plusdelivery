@@ -2,7 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 // Função para buscar clientes Saboritte
 async function fetchClientesSaboritte(email: string, senha: string) {
-  const apiUrl = "http://localhost:3000/api/buscar-clientes-sab";
+  const apiUrl =
+    "https://bot-mauric-backend.rkwxxj.easypanel.host/api/buscar-clientes-sab";
   const params = new URLSearchParams({ email, senha });
   const response = await fetch(`${apiUrl}?${params.toString()}`, {
     headers: {

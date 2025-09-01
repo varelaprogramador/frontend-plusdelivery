@@ -103,7 +103,8 @@ export class OrdersService {
   }> {
     try {
       // URL da API
-      const apiUrl = "http://localhost:3000/api/pedidos";
+      const apiUrl =
+        "https://bot-mauric-backend.rkwxxj.easypanel.host/api/pedidos";
 
       // Parâmetros de autenticação
       const params = new URLSearchParams({
@@ -433,7 +434,8 @@ export class OrdersService {
         // Preparar os dados para enviar
         try {
           // URL da API
-          const apiUrl = "http://localhost:3000/api/enviapedido";
+          const apiUrl =
+            "https://bot-mauric-backend.rkwxxj.easypanel.host/api/enviapedido";
 
           // Parâmetros de autenticação
           const params = new URLSearchParams({

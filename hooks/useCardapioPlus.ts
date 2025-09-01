@@ -5,7 +5,7 @@ import { STORAGE_KEY_PLUS, type CardapioStoragePlus } from "@/lib/types";
 // Função para buscar o cardápio Plus
 async function fetchCardapioPlus(email: string, senha: string) {
   const apiUrl =
-    "http://localhost:3000/api/cardapio";
+    "https://bot-mauric-backend.rkwxxj.easypanel.host/api/cardapio";
   const params = new URLSearchParams({ email, senha });
   const response = await fetch(`${apiUrl}?${params.toString()}`, {
     headers: {

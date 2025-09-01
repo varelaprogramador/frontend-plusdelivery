@@ -8,7 +8,8 @@ import {
 
 // Função para buscar o cardápio Saboritte
 async function fetchCardapioSaboritte(email: string, senha: string) {
-  const apiUrl = "http://localhost:3000/api/cardapio-sab";
+  const apiUrl =
+    "https://bot-mauric-backend.rkwxxj.easypanel.host/api/cardapio-sab";
   const params = new URLSearchParams({ email, senha });
   const response = await fetch(`${apiUrl}?${params.toString()}`, {
     headers: {
