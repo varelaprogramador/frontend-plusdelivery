@@ -205,10 +205,10 @@ export default function CardapioPlus() {
             <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
             {isLoading ? "Sincronizando..." : "Sincronizar Cardápio com a Plus"}
           </Button>
-          <Button className="bg-blue-600 hover:bg-blue-700">
+          {/* <Button className="bg-blue-600 hover:bg-blue-700">
             <Plus className="mr-2 h-4 w-4" />
             Adicionar Produto
-          </Button>
+          </Button> */}
         </div>
       </div>
 
