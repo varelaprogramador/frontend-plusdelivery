@@ -222,8 +222,8 @@ const OrderDetailsModal = memo(
                     Troco para: <MoneyDisplay value={order.paymentInfo.change} />
                   </p>
                 )}
-                <p className="mt-1">
-                  Status:{" "}
+                <div className="mt-1">
+                  <span className="text-sm">Status: </span>
                   <Badge
                     variant={order.paymentInfo.paid ? "default" : "secondary"}
                     className={
@@ -234,7 +234,7 @@ const OrderDetailsModal = memo(
                   >
                     {order.paymentInfo.paid ? "Pago" : "Pendente"}
                   </Badge>
-                </p>
+                </div>
               </div>
             </div>
           </div>
@@ -268,9 +268,11 @@ const OrderDetailsModal = memo(
             <DialogDescription className="text-zinc-400">Informações completas sobre o pedido.</DialogDescription>
           </DialogHeader>
 
-          {renderOrderDetails}
+          <div className="max-h-[60vh] overflow-y-auto">
+            {renderOrderDetails}
+          </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex justify-between items-center gap-2 pt-4">
             <Button variant="outline" onClick={onClose} className="border-zinc-700 text-white hover:bg-zinc-800">
               Fechar
             </Button>
@@ -318,6 +320,7 @@ export default function Pedidos() {
   const [activeTab, setActiveTab] = useState("todos")
   const [confirmSendDialogOpen, setConfirmSendDialogOpen] = useState(false)
   const [pedidosAEnviar, setPedidosAEnviar] = useState<string[]>([])
+  const [isClosingModal, setIsClosingModal] = useState(false)
 
   // Filtrar pedidos com o hook corrigido
   const filteredOrders = useFilteredData({
@@ -437,6 +440,15 @@ export default function Pedidos() {
     })
   }, [])
 
+  const handleRowClick = useCallback((order: Order) => {
+    // Evitar cliques se o modal estiver fechando ou aberto
+    if (isClosingModal || detailsDialogOpen) {
+      return
+    }
+    
+    toggleOrderSelection(order.id)
+  }, [isClosingModal, detailsDialogOpen, toggleOrderSelection])
+
   const toggleSelectAll = useCallback(() => {
     if (selectedOrders.length === filteredOrders.length) {
       setSelectedOrders([])
@@ -451,8 +463,14 @@ export default function Pedidos() {
   }, [])
 
   const closeOrderDetails = useCallback(() => {
+    setIsClosingModal(true)
     setDetailsDialogOpen(false)
     setCurrentOrder(null)
+    
+    // Aguardar um pouco antes de permitir novos cliques
+    setTimeout(() => {
+      setIsClosingModal(false)
+    }, 150)
   }, [])
 
   const handleSyncOrders = useCallback(() => {
@@ -717,7 +735,7 @@ export default function Pedidos() {
                 columns={columns}
                 itemHeight={80}
                 containerHeight={600}
-                onRowClick={openOrderDetails}
+                onRowClick={handleRowClick}
               />
             )}
           </TabsContent>
@@ -734,7 +752,7 @@ export default function Pedidos() {
                 columns={columns}
                 itemHeight={80}
                 containerHeight={600}
-                onRowClick={openOrderDetails}
+                onRowClick={handleRowClick}
               />
             )}
           </TabsContent>
@@ -751,7 +769,7 @@ export default function Pedidos() {
                 columns={columns}
                 itemHeight={80}
                 containerHeight={600}
-                onRowClick={openOrderDetails}
+                onRowClick={handleRowClick}
               />
             )}
           </TabsContent>
@@ -768,7 +786,7 @@ export default function Pedidos() {
                 columns={columns}
                 itemHeight={80}
                 containerHeight={600}
-                onRowClick={openOrderDetails}
+                onRowClick={handleRowClick}
               />
             )}
           </TabsContent>
@@ -785,7 +803,7 @@ export default function Pedidos() {
                 columns={columns}
                 itemHeight={80}
                 containerHeight={600}
-                onRowClick={openOrderDetails}
+                onRowClick={handleRowClick}
               />
             )}
           </TabsContent>
@@ -793,12 +811,14 @@ export default function Pedidos() {
       </div>
 
       {/* Modal de detalhes do pedido otimizada */}
-      <OrderDetailsModal
-        order={currentOrder}
-        isOpen={detailsDialogOpen}
-        onClose={closeOrderDetails}
-        onSendToSaboritte={(orderId: string) => iniciarEnvioPedidos([orderId])}
-      />
+      {(detailsDialogOpen || currentOrder) && (
+        <OrderDetailsModal
+          order={currentOrder}
+          isOpen={detailsDialogOpen}
+          onClose={closeOrderDetails}
+          onSendToSaboritte={(orderId: string) => iniciarEnvioPedidos([orderId])}
+        />
+      )}
 
       {/* Modal de confirmação de envio */}
       <Dialog open={confirmSendDialogOpen} onOpenChange={setConfirmSendDialogOpen}>

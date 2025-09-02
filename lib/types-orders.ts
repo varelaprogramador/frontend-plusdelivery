@@ -97,5 +97,19 @@ export interface OrdersApiResponse {
   }[]
 }
 
+// Interface para a tabela orders do Supabase
+export interface SupabaseOrderRow {
+  id: number
+  external_id: string
+  client_name: string
+  date_time: string
+  status: string
+  details: string
+  extracted_items: any
+  mapped_items: any
+  created_at: string
+  updated_at: string
+}
+
 // Chave para armazenamento no localStorage
 export const STORAGE_KEY_ORDERS = "intermediator_pedidos"

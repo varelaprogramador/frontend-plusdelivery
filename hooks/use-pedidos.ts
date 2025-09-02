@@ -3,21 +3,35 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { OrdersService } from "@/lib/orders-service";
 import { useToast } from "@/components/ui/use-toast";
 import { useSyncQueue } from "@/hooks/use-sync-queue";
-import type { Order, OrderStats } from "@/lib/types-orders";
+import { getSupabase } from "@/lib/supabase";
+import type { Order, OrderStats, SupabaseOrderRow } from "@/lib/types-orders";
 
 export const usePedidos = () => {
   const { toast } = useToast();
   const { startSync, finishSync, isSyncing: isGlobalSyncing } = useSyncQueue();
   const queryClient = useQueryClient();
 
-  // Buscar pedidos (localStorage)
+  // Buscar pedidos do Supabase
   const {
     data: orders = [],
     isLoading: isLoadingOrders,
     refetch: refetchOrders,
   } = useQuery<Order[]>({
     queryKey: ["orders"],
-    queryFn: () => Promise.resolve(OrdersService.getOrders()),
+    queryFn: async () => {
+      const supabase = getSupabase();
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .order("created_at", { ascending: false });
+      
+      if (error) {
+        console.error("Erro ao buscar pedidos:", error);
+        return [];
+      }
+      
+      return OrdersService.convertSupabaseOrdersToOrders(data || []);
+    },
   });
 
   // Buscar estatísticas
@@ -37,7 +51,8 @@ export const usePedidos = () => {
     refetch: refetchStats,
   } = useQuery<OrderStats>({
     queryKey: ["orderStats"],
-    queryFn: () => Promise.resolve(OrdersService.getOrderStats()),
+    queryFn: () => Promise.resolve(OrdersService.getOrderStatsFromOrders(orders)),
+    enabled: orders.length > 0,
   });
 
   // Sincronizar pedidos da Plus (fila global)

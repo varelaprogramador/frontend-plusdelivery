@@ -3,6 +3,7 @@ import type {
   OrderFilters,
   OrderStats,
   OrdersApiResponse,
+  SupabaseOrderRow,
 } from "./types-orders";
 import { STORAGE_KEY_ORDERS } from "./types-orders";
 import { getSupabase } from "./supabase";
@@ -13,7 +14,261 @@ import { ConfigurationData } from "./types-config";
 
 // Classe para gerenciar pedidos
 export class OrdersService {
-  // Buscar todos os pedidos do localStorage
+  // Converter pedidos do Supabase para o formato da aplicação
+  static convertSupabaseOrdersToOrders(
+    supabaseOrders: SupabaseOrderRow[]
+  ): Order[] {
+    return supabaseOrders.map(OrdersService.convertSupabaseOrderToOrder);
+  }
+
+  // Converter um pedido do Supabase para o formato da aplicação
+  static convertSupabaseOrderToOrder(supabaseOrder: SupabaseOrderRow): Order {
+    try {
+      // Parse dos itens extraídos se disponíveis, senão tenta parser dos detalhes
+      let parsedItems = [];
+      if (supabaseOrder.extracted_items) {
+        parsedItems = Array.isArray(supabaseOrder.extracted_items)
+          ? supabaseOrder.extracted_items
+          : JSON.parse(supabaseOrder.extracted_items);
+      } else {
+        // Fallback para parsear dos detalhes
+        const parsedDetails = OrdersService.parseOrderDetails(
+          supabaseOrder.details
+        );
+        parsedItems = parsedDetails.items;
+      }
+
+      // Parse dos detalhes para extrair informações adicionais
+      const parsedDetails = OrdersService.parseOrderDetails(
+        supabaseOrder.details
+      );
+
+      // Determinar o método de pagamento
+      let paymentMethod:
+        | "credit_card"
+        | "debit_card"
+        | "cash"
+        | "pix"
+        | "other" = "other";
+      if (parsedDetails.paymentMethod) {
+        const method = parsedDetails.paymentMethod.toLowerCase();
+        if (method.includes("cartão") && method.includes("crédito")) {
+          paymentMethod = "credit_card";
+        } else if (method.includes("cartão") && method.includes("débito")) {
+          paymentMethod = "debit_card";
+        } else if (method.includes("dinheiro") || method.includes("vista")) {
+          paymentMethod = "cash";
+        } else if (method.includes("pix")) {
+          paymentMethod = "pix";
+        }
+      }
+
+      return {
+        id: supabaseOrder.external_id,
+        clientName: supabaseOrder.client_name,
+        clientPhone: parsedDetails.clientPhone,
+        dateTime: supabaseOrder.date_time,
+        status: (supabaseOrder.status as Order["status"]) || "pending",
+        items: parsedItems.map((item: any, index: number) => ({
+          id: `${supabaseOrder.external_id}-item-${index}`,
+          name: item.name,
+          quantity: item.quantity || 1,
+          price: item.price || 0,
+          notes: item.notes,
+          extras: item.extras,
+          variation: item.variation,
+        })),
+        deliveryAddress: {
+          street: parsedDetails.address.street,
+          number: parsedDetails.address.number,
+          complement: parsedDetails.address.complement,
+          neighborhood: parsedDetails.address.neighborhood,
+          city: parsedDetails.address.city,
+          state: parsedDetails.address.state,
+          reference: parsedDetails.address.reference,
+        },
+        paymentInfo: {
+          method: paymentMethod,
+          total: parsedDetails.total,
+          change: parsedDetails.changeFor,
+          paid: false,
+        },
+        deliveryFee: parsedDetails.deliveryFee,
+        convenienceFee: parsedDetails.convenienceFee,
+        estimatedDeliveryTime: parsedDetails.estimatedDeliveryTime,
+        sentToSaboritte:
+          supabaseOrder.status === "processing" ||
+          supabaseOrder.status === "completed",
+        saboritteSentAt:
+          supabaseOrder.status !== "pending"
+            ? supabaseOrder.updated_at
+            : undefined,
+        rawDetails: supabaseOrder.details,
+      };
+    } catch (error) {
+      console.error("Erro ao converter pedido do Supabase:", error);
+
+      // Retorna um pedido básico em caso de erro
+      return {
+        id: supabaseOrder.external_id,
+        clientName: supabaseOrder.client_name,
+        clientPhone: undefined,
+        dateTime: supabaseOrder.date_time,
+        status: "error",
+        items: [],
+        deliveryAddress: {
+          street: "",
+          number: "",
+          neighborhood: "",
+          city: "",
+          state: "",
+        },
+        paymentInfo: {
+          method: "other",
+          total: 0,
+          paid: false,
+        },
+        sentToSaboritte: false,
+        rawDetails: supabaseOrder.details,
+      };
+    }
+  }
+
+  // Calcular estatísticas a partir de uma lista de pedidos
+  static getOrderStatsFromOrders(orders: Order[]): OrderStats {
+    try {
+      // Contar pedidos por status
+      const pending = orders.filter(
+        (order) => order.status === "pending"
+      ).length;
+      const processing = orders.filter(
+        (order) => order.status === "processing"
+      ).length;
+      const completed = orders.filter(
+        (order) => order.status === "completed"
+      ).length;
+      const cancelled = orders.filter(
+        (order) => order.status === "cancelled"
+      ).length;
+      const error = orders.filter((order) => order.status === "error").length;
+
+      // Calcular receita total
+      const totalRevenue = orders
+        .filter((order) => order.status !== "cancelled")
+        .reduce(
+          (sum, order) => sum + OrdersService.calculateOrderTotal(order),
+          0
+        );
+
+      // Filtrar pedidos de hoje
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const todayOrders = orders.filter((order) => {
+        const orderDate = new Date(order.dateTime);
+        return orderDate >= today;
+      });
+
+      // Calcular receita de hoje
+      const todayRevenue = todayOrders.reduce(
+        (sum, order) => sum + OrdersService.calculateOrderTotal(order),
+        0
+      );
+
+      return {
+        total: orders.length,
+        pending,
+        processing,
+        completed,
+        cancelled,
+        error,
+        totalRevenue,
+        todayOrders: todayOrders.length,
+        todayRevenue,
+      };
+    } catch (error) {
+      console.error("Erro ao obter estatísticas de pedidos:", error);
+      return {
+        total: 0,
+        pending: 0,
+        processing: 0,
+        completed: 0,
+        cancelled: 0,
+        error: 0,
+        totalRevenue: 0,
+        todayOrders: 0,
+        todayRevenue: 0,
+      };
+    }
+  }
+  // Buscar todos os pedidos do Supabase com filtros
+  static async getOrdersFromSupabase(filters?: OrderFilters): Promise<Order[]> {
+    try {
+      const supabase = getSupabase();
+      let query = supabase
+        .from("orders")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      // Aplicar filtros se fornecidos
+      if (filters) {
+        if (filters.status && filters.status !== "all") {
+          query = query.eq("status", filters.status);
+        }
+
+        if (filters.dateFrom) {
+          query = query.gte("date_time", filters.dateFrom);
+        }
+
+        if (filters.dateTo) {
+          query = query.lte("date_time", filters.dateTo);
+        }
+
+        if (filters.clientName) {
+          query = query.ilike("client_name", `%${filters.clientName}%`);
+        }
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error("Erro ao buscar pedidos do Supabase:", error);
+        return [];
+      }
+
+      if (!data) {
+        return [];
+      }
+
+      const orders = OrdersService.convertSupabaseOrdersToOrders(
+        data as SupabaseOrderRow[]
+      );
+
+      // Aplicar filtros de valor que não podem ser aplicados no SQL
+      let filtered = orders;
+
+      if (filters?.minTotal) {
+        filtered = filtered.filter((order) => {
+          const total = OrdersService.calculateOrderTotal(order);
+          return total >= (filters.minTotal || 0);
+        });
+      }
+
+      if (filters?.maxTotal) {
+        filtered = filtered.filter((order) => {
+          const total = OrdersService.calculateOrderTotal(order);
+          return total <= (filters.maxTotal || Number.POSITIVE_INFINITY);
+        });
+      }
+
+      return filtered;
+    } catch (error) {
+      console.error("Erro ao buscar pedidos:", error);
+      return [];
+    }
+  }
+
+  // Buscar todos os pedidos do localStorage (mantido para compatibilidade)
   static getOrders(filters?: OrderFilters): Order[] {
     try {
       const storedOrders = localStorage.getItem(STORAGE_KEY_ORDERS);
@@ -50,14 +305,14 @@ export class OrdersService {
 
       if (filters.minTotal) {
         filtered = filtered.filter((order) => {
-          const total = this.calculateOrderTotal(order);
+          const total = OrdersService.calculateOrderTotal(order);
           return total >= (filters.minTotal || 0);
         });
       }
 
       if (filters.maxTotal) {
         filtered = filtered.filter((order) => {
-          const total = this.calculateOrderTotal(order);
+          const total = OrdersService.calculateOrderTotal(order);
           return total <= (filters.maxTotal || Number.POSITIVE_INFINITY);
         });
       }
@@ -69,10 +324,38 @@ export class OrdersService {
     }
   }
 
-  // Buscar um pedido específico por ID
+  // Buscar um pedido específico por ID no Supabase
+  static async getOrderByIdFromSupabase(id: string): Promise<Order | null> {
+    try {
+      const supabase = getSupabase();
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("external_id", id)
+        .single();
+
+      if (error) {
+        console.error(`Erro ao buscar pedido ${id} no Supabase:`, error);
+        return null;
+      }
+
+      if (!data) {
+        return null;
+      }
+
+      return OrdersService.convertSupabaseOrderToOrder(
+        data as unknown as SupabaseOrderRow
+      );
+    } catch (error) {
+      console.error(`Erro ao buscar pedido com ID ${id}:`, error);
+      return null;
+    }
+  }
+
+  // Buscar um pedido específico por ID (localStorage - mantido para compatibilidade)
   static getOrderById(id: string): Order | null {
     try {
-      const orders = this.getOrders();
+      const orders = OrdersService.getOrders();
       return orders.find((order) => order.id === id) || null;
     } catch (error) {
       console.error(`Erro ao buscar pedido com ID ${id}:`, error);
@@ -80,10 +363,39 @@ export class OrdersService {
     }
   }
 
-  // Atualizar o status de um pedido
+  // Atualizar o status de um pedido no Supabase
+  static async updateOrderStatusInSupabase(
+    id: string,
+    status: string
+  ): Promise<Order | null> {
+    try {
+      const supabase = getSupabase();
+      const { data, error } = await supabase
+        .from("orders")
+        .update({
+          status: status,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("external_id", id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error(`Erro ao atualizar status do pedido ${id}:`, error);
+        return null;
+      }
+
+      return data ? OrdersService.convertSupabaseOrderToOrder(data) : null;
+    } catch (error) {
+      console.error(`Erro ao atualizar status do pedido ${id}:`, error);
+      return null;
+    }
+  }
+
+  // Atualizar o status de um pedido (localStorage - mantido para compatibilidade)
   static updateOrderStatus(id: string, status: string): Order | null {
     try {
-      const orders = this.getOrders();
+      const orders = OrdersService.getOrders();
       const orderIndex = orders.findIndex((order) => order.id === id);
 
       if (orderIndex === -1) return null;
@@ -105,14 +417,19 @@ export class OrdersService {
     count: number;
   }> {
     try {
-      // URL da API
+      // URL da API (usando a rota correta da sua API)
       const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/pedidos`;
 
-      // Parâmetros de autenticação
+      // Parâmetros de autenticação conforme esperado pela API
       const params = new URLSearchParams({
         email: "elzalanches2019@gmail.com",
         senha: "Plus2910@vermelho",
       });
+
+      console.log(
+        "Sincronizando pedidos da Plus via API:",
+        `${apiUrl}?${params.toString()}`
+      );
 
       const response = await fetch(`${apiUrl}?${params.toString()}`, {
         headers: {
@@ -128,34 +445,101 @@ export class OrdersService {
         );
       }
 
-      const data: OrdersApiResponse = await response.json();
+      const data = await response.json();
+      console.log("Resposta da API recebida:", data);
 
+      // Verificar se a resposta tem o formato esperado
       if (!data.pedidos || !Array.isArray(data.pedidos)) {
-        throw new Error("Formato de resposta inválido");
+        throw new Error(
+          "Formato de resposta inválido - esperado array 'pedidos'"
+        );
       }
 
-      // Processar os pedidos recebidos
-      const processedOrders = data.pedidos.map(this.parseOrderFromApi);
+      if (data.pedidos.length === 0) {
+        return {
+          success: true,
+          message: "Nenhum pedido novo encontrado.",
+          count: 0,
+        };
+      }
 
-      // Obter pedidos existentes
-      const existingOrders = this.getOrders();
+      // Processar os pedidos recebidos da API
+      const processedOrders = data.pedidos.map(OrdersService.parseOrderFromApi);
+      console.log("Pedidos processados:", processedOrders.length);
 
-      // Filtrar apenas pedidos novos (que não existem no localStorage)
-      const existingIds = new Set(existingOrders.map((order) => order.id));
+      // Obter cliente Supabase
+      const supabase = getSupabase();
+
+      // Verificar quais pedidos já existem no Supabase
+      const { data: existingSupabaseOrders, error: queryError } = await supabase
+        .from("orders")
+        .select("external_id")
+        .in(
+          "external_id",
+          processedOrders.map((order) => order.id)
+        );
+
+      if (queryError) {
+        console.error("Erro ao consultar pedidos existentes:", queryError);
+        throw new Error("Erro ao verificar pedidos existentes no banco");
+      }
+
+      const existingIds = new Set(
+        existingSupabaseOrders?.map((order) => order.external_id) || []
+      );
       const newOrders = processedOrders.filter(
         (order) => !existingIds.has(order.id)
       );
 
-      // Combinar pedidos existentes com novos pedidos
-      const updatedOrders = [...newOrders, ...existingOrders];
+      console.log(
+        `${newOrders.length} novos pedidos para inserir de ${processedOrders.length} totais`
+      );
 
-      // Salvar no localStorage
-      localStorage.setItem(STORAGE_KEY_ORDERS, JSON.stringify(updatedOrders));
+      let insertedCount = 0;
+      const errors = [];
+
+      // Inserir novos pedidos no Supabase
+      for (const order of newOrders) {
+        try {
+          const { error } = await supabase.from("orders").insert({
+            external_id: order.id,
+            client_name: order.clientName,
+            date_time: order.dateTime,
+            status: order.status,
+            details: order.rawDetails || "",
+            extracted_items: JSON.stringify(order.items),
+            mapped_items: null,
+          });
+
+          if (error) {
+            console.error(`Erro ao inserir pedido ${order.id}:`, error);
+            errors.push(`Pedido ${order.id}: ${error.message}`);
+          } else {
+            insertedCount++;
+            console.log(`Pedido ${order.id} inserido com sucesso`);
+          }
+        } catch (error) {
+          console.error(`Erro ao processar pedido ${order.id}:`, error);
+          errors.push(
+            `Pedido ${order.id}: ${
+              error instanceof Error ? error.message : "Erro desconhecido"
+            }`
+          );
+        }
+      }
+
+      const successMessage = `${insertedCount} novos pedidos sincronizados da Plus Delivery.`;
+      const errorMessage =
+        errors.length > 0
+          ? ` Erros: ${errors.slice(0, 3).join(", ")}${
+              errors.length > 3 ? "..." : ""
+            }`
+          : "";
 
       return {
-        success: true,
-        message: `${newOrders.length} novos pedidos sincronizados da Plus Delivery.`,
-        count: newOrders.length,
+        success: insertedCount > 0 || newOrders.length === 0,
+        message: successMessage + errorMessage,
+        count: insertedCount,
       };
     } catch (error) {
       console.error("Erro ao sincronizar pedidos da Plus:", error);
@@ -373,7 +757,7 @@ export class OrdersService {
   ): Promise<{ success: boolean; message: string; results: any[] }> {
     try {
       // 1. Obter os pedidos selecionados
-      const orders = this.getOrders();
+      const orders = OrdersService.getOrders();
       const selectedOrders = orders.filter((order) =>
         orderIds.includes(order.id)
       );
@@ -388,7 +772,7 @@ export class OrdersService {
 
         // Verificar cada item do pedido
         for (const item of order.items) {
-          const verificacao = await this.verificarProdutoVinculado(item.name);
+          const verificacao = await OrdersService.verificarProdutoVinculado(item.name);
 
           if (verificacao.vinculado) {
             itensVinculados.push({
@@ -418,7 +802,7 @@ export class OrdersService {
         let clienteId = "";
 
         if (order.clientPhone) {
-          const clienteResult = await this.checkClientExistsBySaboritte(
+          const clienteResult = await OrdersService.checkClientExistsBySaboritte(
             order.clientPhone
           );
           contactIsexiste = clienteResult.exists;
@@ -436,8 +820,10 @@ export class OrdersService {
         // Preparar os dados para enviar
         try {
           // Obter configurações da Saboritte
-          const config = await ConfigService.getPlatformConfigurations("saboritte");
-          
+          const config = await ConfigService.getPlatformConfigurations(
+            "saboritte"
+          );
+
           if (!config?.credentials?.email || !config?.credentials?.senha) {
             results.push({
               id: order.id,
@@ -466,7 +852,7 @@ export class OrdersService {
           }, ${order.deliveryAddress.city}/${order.deliveryAddress.state}`;
 
           const infoEndereco =
-            this.extrairInformacoesEndereco(enderecoCompleto);
+            OrdersService.extrairInformacoesEndereco(enderecoCompleto);
 
           // Mapear o método de pagamento para um valor aceito pela API
           let metodoPagamento = "Dinheiro"; // Valor padrão
@@ -558,15 +944,21 @@ export class OrdersService {
           }
 
           if (responseData.sucesso) {
-            // Atualizar o status do pedido
-            const orderIndex = orders.findIndex((o) => o.id === order.id);
-            if (orderIndex !== -1) {
-              orders[orderIndex] = {
-                ...order,
-                status: "processing" as const,
-                sentToSaboritte: true,
-                saboritteSentAt: now,
-              };
+            // Atualizar o status do pedido no Supabase
+            try {
+              const supabase = getSupabase();
+              await supabase
+                .from("orders")
+                .update({
+                  status: "processing",
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("external_id", order.id);
+            } catch (supabaseError) {
+              console.error(
+                "Erro ao atualizar status no Supabase:",
+                supabaseError
+              );
             }
 
             results.push({
@@ -610,8 +1002,7 @@ export class OrdersService {
         }
       }
 
-      // Salvar as atualizações dos pedidos
-      localStorage.setItem(STORAGE_KEY_ORDERS, JSON.stringify(orders));
+      // As atualizações dos pedidos já foram salvas no Supabase durante o processamento
 
       // Determinar se houve sucesso com base nos resultados
       const successCount = results.filter((r) => r.success).length;
@@ -634,7 +1025,7 @@ export class OrdersService {
   // Obter estatísticas de pedidos
   static getOrderStats(): OrderStats {
     try {
-      const orders = this.getOrders();
+      const orders = OrdersService.getOrders();
 
       // Contar pedidos por status
       const pending = orders.filter(
@@ -654,7 +1045,10 @@ export class OrdersService {
       // Calcular receita total
       const totalRevenue = orders
         .filter((order) => order.status !== "cancelled")
-        .reduce((sum, order) => sum + this.calculateOrderTotal(order), 0);
+        .reduce(
+          (sum, order) => sum + OrdersService.calculateOrderTotal(order),
+          0
+        );
 
       // Filtrar pedidos de hoje
       const today = new Date();
@@ -667,7 +1061,7 @@ export class OrdersService {
 
       // Calcular receita de hoje
       const todayRevenue = todayOrders.reduce(
-        (sum, order) => sum + this.calculateOrderTotal(order),
+        (sum, order) => sum + OrdersService.calculateOrderTotal(order),
         0
       );
 
